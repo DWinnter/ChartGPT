@@ -18,9 +18,8 @@ from langchain_experimental.agents.agent_toolkits import create_pandas_dataframe
 from langchain.chat_models import ChatOpenAI
 from langchain.llms import OpenAI
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
-openai.api_base = os.getenv("OPENAI_API_BASE")
-openai.organization_id = os.getenv("OPENAI_ORGANIZATION_ID")
+openai.api_key = "sk-kAUb7wfFGc9QlWeZA8hMjDTpoDQemFImvz66infyW1nHLArf"
+openai.api_base = "https://api.claude-plus.top/v1"
 
 app = dash.Dash(
     __name__,
@@ -421,7 +420,7 @@ def predict(df, prompt):
         #     ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0), df, verbose=False
         # )
         agent = create_pandas_dataframe_agent(
-            ChatOpenAI(model_name="gpt-4", temperature=0), df, verbose=False
+            ChatOpenAI(model_name="gpt-4o", temperature=0), df, verbose=False
         )
         result_text = agent.run(prompt)
         output = show_text_card(result_text)

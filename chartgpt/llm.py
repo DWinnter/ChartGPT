@@ -1,8 +1,8 @@
 import os
 import re
+import requests
+import json
 from typing import Any, Dict
-
-import openai
 
 from .constants import END_CODE_TAG, START_CODE_TAG
 
@@ -11,13 +11,13 @@ class LLM:
     """LLM class for generating code from a prompt.
 
     Args:
-        model_name (str, optional): Model name. Defaults to "text-davinci-003".
+        model_name (str, optional): Model name. Defaults to "claude-3-5-sonnet-20240620".
         temperature (int, optional): Temperature. Defaults to 0.2.
         max_tokens (int, optional): Max tokens. Defaults to 1000.
         top_p (int, optional): Top p. Defaults to 1.
         frequency_penalty (int, optional): Frequency penalty. Defaults to 0.
         presence_penalty (int, optional): Presence penalty. Defaults to 0.
-        api_key (str, optional): OpenAI API key. Defaults to None.
+        api_key (str, optional): Claude API key. Defaults to None.
 
     Raises:
         ValueError: If no API key is provided.
@@ -28,7 +28,7 @@ class LLM:
 
     def __init__(
         self,
-        model_name: str = None,
+        model_name: str = "gpt-4o",
         temperature: int = 0.2,
         max_tokens: int = 1000,
         top_p: int = 1,
@@ -37,7 +37,8 @@ class LLM:
         chat: bool = True,
         api_key: str = None,
     ):
-        self.model_name = model_name or "gpt-3.5-turbo" if chat else "text-davinci-003"
+        self.base_url = "https://api.claude-plus.top"
+        self.model_name = model_name
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.top_p = top_p
@@ -45,10 +46,9 @@ class LLM:
         self.presence_penalty = presence_penalty
         self.chat = chat
 
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or None
+        self.api_key = "sk-UjwYbOFayTYngtr69OKAP86ErtGrSdNlOaTV8g4529GMbHry"
         if self.api_key is None:
-            raise ValueError("Please provide an OpenAI API key")
-        openai.api_key = self.api_key
+            raise ValueError("Please provide a Claude API key")
 
         self.messages = []
 
@@ -97,9 +97,9 @@ class LLM:
     @property
     def _default_params(self) -> Dict[str, Any]:
         """
-        Get the default parameters for calling OpenAI API
+        Get the default parameters for calling Claude API
 
-        Returns (Dict): A dict of OpenAi API parameters
+        Returns (Dict): A dict of Claude API parameters
 
         """
 
@@ -122,11 +122,30 @@ class LLM:
         Returns:
             str: LLM response
         """
-        params = {**self._default_params, "prompt": prompt}
+        url = f"{self.base_url}/v1/chat/completions"
+        
+        payload = json.dumps({
+            "model": self.model_name,
+            "prompt": prompt,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "top_p": self.top_p,
+            "frequency_penalty": self.frequency_penalty,
+            "presence_penalty": self.presence_penalty,
+        })
+        
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {self.api_key}',
+            'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+            'Content-Type': 'application/json'
+        }
 
-        response = openai.Completion.create(**params)
+        response = requests.request("POST", url, headers=headers, data=payload)
+        data = response.json()
+        message = data["choices"][0]["text"]
 
-        return response["choices"][0]["text"]
+        return message
 
     def chat_completion(self, value: str) -> str:
         """
@@ -138,18 +157,40 @@ class LLM:
         Returns:
             str: LLM response
         """
-        params = {
-            **self._default_params,
+        url = f"{self.base_url}/v1/chat/completions"
+        
+        payload = json.dumps({
+            "model": self.model_name,
             "messages": [
                 {
                     "role": "system",
-                    "content": value,
+                    "content": "You are a helpful assistant."
+                },
+                {
+                    "role": "user",
+                    "content": value
                 }
-            ],
+            ]
+        })
+        
+        headers = {
+            'Accept': 'application/json',
+            'Authorization': f'Bearer {self.api_key}',
+            'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+            'Content-Type': 'application/json'
         }
 
-        response = openai.ChatCompletion.create(**params)
-        message = response["choices"][0]["message"]["content"]
+        response = requests.request("POST", url, headers=headers, data=payload)
+        data = response.json()
+        
+        # Debug the response
+        if response.status_code != 200:
+            raise Exception(f"API request failed with status {response.status_code}: {data}")
+            
+        if "choices" not in data:
+            raise Exception(f"Unexpected API response format. Response data: {data}")
+            
+        message = data["choices"][0]["message"]["content"]
 
         self.add_history(value, message)
         return message
