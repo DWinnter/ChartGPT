@@ -44,7 +44,6 @@ python app.py
 - Visualize the age distribution of male and female passengers
 - What is the average age of passengers who survived and who did not survive
 
-结果
 
 ![可视化回答](./pictures/result1.png)
 
